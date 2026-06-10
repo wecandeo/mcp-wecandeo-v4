@@ -1,0 +1,47 @@
+{
+	"name": "@pluto90/wecandeo-v4-mcp",
+	"version": "1.0.0",
+	"description": "Wecandeo VideoPack v4 MCP Server - video management tools (upload, encoding, publishing, media archive) via the MCP protocol",
+	"type": "module",
+	"author": "pluto90k <pluto90k@gmail.com>",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/pluto90k/mcp-wecandeo-v4.git"
+	},
+	"bugs": {
+		"url": "https://github.com/pluto90k/mcp-wecandeo-v4/issues"
+	},
+	"homepage": "https://github.com/pluto90k/mcp-wecandeo-v4#readme",
+	"bin": {
+		"wecandeo-v4-mcp": "./dist/index.js"
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"build": "tsc",
+		"start": "node dist/index.js",
+		"prepare": "npm run build"
+	},
+	"keywords": [
+		"mcp",
+		"wecandeo",
+		"videopack",
+		"video",
+		"v4"
+	],
+	"devDependencies": {
+		"@types/node": "^22.0.0",
+		"typescript": "^5.5.2"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.27.1",
+		"zod": "^4.3.6"
+	}
+}
