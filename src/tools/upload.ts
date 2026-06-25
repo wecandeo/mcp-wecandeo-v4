@@ -6,17 +6,19 @@ import { jsonContent, errorContent } from "../utils/response.js";
 
 /**
  * Upload API group (VideoPack v4).
+ *
+ * v4 upload model: each file (video / thumbnail / caption) needs its own
+ * upload token. A token response is `{ ver, uploadUrl, token }`; the file is
+ * then POSTed as multipart/form-data to `{uploadUrl}?token={token}` with a
+ * `file` form field. Thumbnail and caption tokens are issued per accessKey.
  */
 export function registerUploadTools(server: McpServer, client: WecandeoClient) {
-	// Upload token (V4) — prerequisite for every file upload.
+	// Video upload token — prerequisite for a video file upload.
 	server.tool(
 		"wecandeo_upload_create_token",
-		"Create a V4 upload token. Returns uploadUrl, thumbnailUploadUrl, captionUploadUrl, uploadCancelUrl and token. A token can upload exactly one file.",
+		"Create a V4 video upload token. Returns { ver, uploadUrl, token }. A token uploads exactly one file and is valid for 60 minutes.",
 		{},
-		async () => {
-			const result = await client.get("/web/v4/uploadToken.json");
-			return jsonContent(result);
-		}
+		async () => jsonContent(await client.get("/info/videopack/upload/v1/token.json"))
 	);
 
 	// Upload a video file (local path or remote URL).
@@ -27,8 +29,8 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 			uploadUrl: z.string().describe("uploadUrl from wecandeo_upload_create_token"),
 			token: z.string().describe("Upload token from wecandeo_upload_create_token"),
 			source: z.string().describe("Local file path (e.g. /path/video.mp4) or remote URL of the video"),
-			folder: z.number().describe("Target media-archive folder ID"),
-			pkg: z.number().optional().describe("Distribution package ID. When set, encoding and a distribution URL are issued."),
+			folderId: z.number().describe("Target media-archive folder ID"),
+			packageId: z.number().optional().describe("Distribution package ID. When set, encoding and a distribution URL are issued."),
 			cid: z.string().optional().describe("Custom user-defined ID (max 64 chars)"),
 			rename: z.string().optional().describe("Rename the source file (without extension)"),
 			callback: z.string().optional().describe("Callback URL. Redirected as GET {callback}?data={JSON}"),
@@ -38,9 +40,11 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 			copyright: z.string().optional().describe("Copyright info"),
 			rate: z.string().optional().describe("Viewing rating"),
 			content: z.string().optional().describe("Description / content"),
-			tag: z.string().optional().describe("Comma-separated tags"),
+			tag: z.string().optional().describe("Comma-separated tags (e.g. tag1,tag2,tag3)"),
+			etc: z.string().optional().describe("Etc info"),
+			orgFileDel: z.enum(["Y", "N"]).optional().describe("Delete the original after encoding (Y/N, default N). Requires packageId."),
 		},
-		async ({ uploadUrl, token, source, folder, ...optional }) => {
+		async ({ uploadUrl, token, source, ...fields }) => {
 			let file;
 			try {
 				file = await resolveFile(source, "video.mp4");
@@ -49,12 +53,10 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 			}
 
 			const formData = new FormData();
-			formData.append("token", token);
-			formData.append("folder", String(folder));
-			for (const [key, value] of Object.entries(optional)) {
+			for (const [key, value] of Object.entries(fields)) {
 				if (value !== undefined && value !== null) formData.append(key, String(value));
 			}
-			formData.append("videofile", file.blob, file.fileName);
+			formData.append("file", file.blob, file.fileName);
 
 			const response = await fetch(`${uploadUrl}?token=${encodeURIComponent(token)}`, {
 				method: "POST",
@@ -68,28 +70,16 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 	server.tool(
 		"wecandeo_upload_video_status",
 		"Check the upload status of a video by token. Returns a status such as UPLOADING, UPLOADED, THUMBS, DEPLOY, COMPLETE, U_ERROR, FILEOVER.",
-		{
-			uploadUrl: z.string().describe("uploadUrl from wecandeo_upload_create_token"),
-			token: z.string().describe("Upload token"),
-		},
-		async ({ uploadUrl, token }) => {
-			const response = await fetch(`${uploadUrl}/status.json?token=${encodeURIComponent(token)}`);
-			return jsonContent(await response.text());
-		}
+		{ token: z.string().describe("Upload token from wecandeo_upload_create_token") },
+		async ({ token }) => jsonContent(await client.get("/info/videopack/upload/v1/status.json", { token }))
 	);
 
 	// Upload progress (percentage + transferred bytes).
 	server.tool(
 		"wecandeo_upload_video_progress",
 		"Check the upload progress of a video by token. Returns process (0-100%) and transferred byte counters.",
-		{
-			uploadUrl: z.string().describe("uploadUrl from wecandeo_upload_create_token"),
-			token: z.string().describe("Upload token"),
-		},
-		async ({ uploadUrl, token }) => {
-			const response = await fetch(`${uploadUrl}/uploadStatus.json?token=${encodeURIComponent(token)}`);
-			return jsonContent(await response.text());
-		}
+		{ token: z.string().describe("Upload token from wecandeo_upload_create_token") },
+		async ({ token }) => jsonContent(await client.get("/info/videopack/upload/v1/progress.json", { token }))
 	);
 
 	// Encoding status.
@@ -97,26 +87,22 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 		"wecandeo_video_encoding_status",
 		"Check the encoding status of an uploaded video. Returns per-profile process (0-100) and status.",
 		{
-			access_key: z.string().describe("Original video access key (Level 1)"),
-			pkg: z.number().describe("Distribution package ID"),
+			accessKey: z.string().describe("Original video access key (Level 1)"),
+			packageId: z.number().describe("Distribution package ID"),
 		},
-		async ({ access_key, pkg }) => {
-			const result = await client.get("/web/encoding/status.json", { access_key, pkg });
-			return jsonContent(result);
-		}
+		async ({ accessKey, packageId }) =>
+			jsonContent(await client.get("/info/videopack/encoding/v1/status.json", { accessKey, packageId }))
 	);
 
-	// Upload thumbnail (local path or remote URL).
+	// Upload thumbnail (local path or remote URL). Fetches its own token by accessKey.
 	server.tool(
 		"wecandeo_upload_thumbnail",
-		"Upload a thumbnail image for a video using a V4 upload token. `source` can be a local file path or a remote URL.",
+		"Upload a thumbnail image for a video. Issues a thumbnail upload token for the accessKey then uploads. `source` can be a local file path or a remote URL.",
 		{
-			thumbnailUploadUrl: z.string().describe("thumbnailUploadUrl from wecandeo_upload_create_token"),
-			token: z.string().describe("Upload token"),
-			access_key: z.string().describe("Original video access key (Level 1) to attach the image to"),
+			accessKey: z.string().describe("Original video access key (Level 1) to attach the image to"),
 			source: z.string().describe("Local file path or remote URL of the thumbnail image"),
 		},
-		async ({ thumbnailUploadUrl, token, access_key, source }) => {
+		async ({ accessKey, source }) => {
 			let file;
 			try {
 				file = await resolveFile(source, "thumbnail.jpg");
@@ -124,12 +110,16 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 				return errorContent(`Cannot read thumbnail source: ${err.message}`);
 			}
 
-			const formData = new FormData();
-			formData.append("token", token);
-			formData.append("access_key", access_key);
-			formData.append("imagefile", file.blob, file.fileName);
+			const tokenInfo = await client.get("/info/videopack/thumbnail/v1/upload/token.json", { accessKey });
+			const { uploadUrl, token } = tokenInfo ?? {};
+			if (!uploadUrl || !token) {
+				return jsonContent(tokenInfo);
+			}
 
-			const response = await fetch(`${thumbnailUploadUrl}?token=${encodeURIComponent(token)}`, {
+			const formData = new FormData();
+			formData.append("file", file.blob, file.fileName);
+
+			const response = await fetch(`${uploadUrl}?token=${encodeURIComponent(token)}`, {
 				method: "POST",
 				body: formData,
 			});
@@ -137,19 +127,17 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 		}
 	);
 
-	// Upload caption (WebVTT, local path or remote URL).
+	// Upload caption (WebVTT, local path or remote URL). Fetches its own token by accessKey.
 	server.tool(
 		"wecandeo_upload_caption",
-		"Upload a WebVTT (.vtt) caption file for a video. `source` can be a local file path or a remote URL.",
+		"Upload a WebVTT (.vtt) caption file for a video. Issues a caption upload token for the accessKey then uploads. `source` can be a local file path or a remote URL.",
 		{
-			captionUploadUrl: z.string().describe("captionUploadUrl from wecandeo_upload_create_token"),
-			token: z.string().describe("Upload token"),
-			access_key: z.string().describe("Original video access key (Level 1) to attach the caption to"),
+			accessKey: z.string().describe("Original video access key (Level 1) to attach the caption to"),
 			source: z.string().describe("Local file path or remote URL of the .vtt caption file"),
-			lang_id: z.number().optional().describe("Language code ID from wecandeo_upload_caption_language (default 10000 = Korean)"),
-			caption_type: z.enum(["STANDARD", "SDH"]).optional().describe("Caption type: STANDARD (default) or SDH (for the hearing impaired)"),
+			langId: z.number().optional().describe("Language code ID from wecandeo_upload_caption_language"),
+			captionType: z.enum(["STANDARD", "SDH"]).optional().describe("Caption type: STANDARD (default) or SDH (for the hearing impaired)"),
 		},
-		async ({ captionUploadUrl, token, access_key, source, lang_id, caption_type }) => {
+		async ({ accessKey, source, langId, captionType }) => {
 			let file;
 			try {
 				file = await resolveFile(source, "caption.vtt");
@@ -157,18 +145,18 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 				return errorContent(`Cannot read caption source: ${err.message}`);
 			}
 
+			const tokenInfo = await client.get("/info/videopack/caption/v1/upload/token.json", { accessKey });
+			const { uploadUrl, token } = tokenInfo ?? {};
+			if (!uploadUrl || !token) {
+				return jsonContent(tokenInfo);
+			}
+
 			const formData = new FormData();
-			formData.append("token", token);
-			formData.append("access_key", access_key);
-			if (lang_id !== undefined) formData.append("lang_id", String(lang_id));
-			if (caption_type) formData.append("caption_type", caption_type);
-			formData.append("captionfile", file.blob, file.fileName);
+			if (langId !== undefined) formData.append("langId", String(langId));
+			if (captionType) formData.append("captionType", captionType);
+			formData.append("file", file.blob, file.fileName);
 
-			const query = new URLSearchParams({ token, access_key });
-			if (lang_id !== undefined) query.set("lang_id", String(lang_id));
-			if (caption_type) query.set("caption_type", caption_type);
-
-			const response = await fetch(`${captionUploadUrl}?${query.toString()}`, {
+			const response = await fetch(`${uploadUrl}?token=${encodeURIComponent(token)}`, {
 				method: "POST",
 				body: formData,
 			});
@@ -179,11 +167,8 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 	// Caption language code list.
 	server.tool(
 		"wecandeo_upload_caption_language",
-		"Retrieve the list of supported caption languages and their lang_id codes.",
+		"Retrieve the list of supported caption languages and their langId codes.",
 		{},
-		async () => {
-			const result = await client.get("/info/v1/video/caption/language.json");
-			return jsonContent(result);
-		}
+		async () => jsonContent(await client.get("/info/videopack/caption/v1/language.json"))
 	);
 }

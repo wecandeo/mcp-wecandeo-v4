@@ -1,15 +1,13 @@
 /**
  * HTTP client for the Wecandeo VideoPack v4 API.
  *
- * v4 exposes two families of endpoints:
- *  - Legacy endpoints on https://api.wecandeo.com (auth: `key` query parameter).
- *    Most upload / video-data / package / archive endpoints live here.
- *  - v4-native endpoints on https://api.v4.wecandeo.com (auth: `x-api-key` header),
- *    e.g. the video detail (info.json) and original download-url endpoints.
+ * All endpoints live on the v4 host https://api.v4.wecandeo.com and follow the
+ * `/info/videopack/{group}/v1/{action}.json` path scheme. Authentication is done
+ * with the `x-api-key` header (NOT the legacy `key` query parameter used by the
+ * v3 host api.wecandeo.com). Parameters and response fields are camelCase.
  */
 export class WecandeoClient {
-	private baseUrl = "https://api.wecandeo.com";
-	private v4BaseUrl = "https://api.v4.wecandeo.com";
+	private baseUrl = "https://api.v4.wecandeo.com";
 	private apiKey: string;
 
 	constructor(apiKey: string) {
@@ -20,10 +18,10 @@ export class WecandeoClient {
 		return this.apiKey;
 	}
 
-	private buildUrl(baseUrl: string, path: string, params?: Record<string, any>): URL {
+	private buildUrl(path: string, params?: Record<string, any>): URL {
 		const url = path.startsWith("http")
 			? new URL(path)
-			: new URL(`${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`);
+			: new URL(`${this.baseUrl}${path.startsWith("/") ? "" : "/"}${path}`);
 		if (params) {
 			for (const [key, value] of Object.entries(params)) {
 				if (value !== undefined && value !== null) {
@@ -48,27 +46,10 @@ export class WecandeoClient {
 	}
 
 	/**
-	 * GET against the legacy api.wecandeo.com host.
-	 * The API key is appended as the `key` query parameter automatically.
+	 * GET against the v4 host. The API key is sent via the `x-api-key` header.
 	 */
 	async get(path: string, params: Record<string, any> = {}) {
-		const url = this.buildUrl(this.baseUrl, path, params);
-		if (!url.searchParams.has("key") && this.apiKey) {
-			url.searchParams.set("key", this.apiKey);
-		}
-		const response = await fetch(url.toString(), {
-			method: "GET",
-			headers: { Accept: "application/json" },
-		});
-		return this.handle(response);
-	}
-
-	/**
-	 * GET against the v4-native api.v4.wecandeo.com host.
-	 * The API key is sent via the `x-api-key` header.
-	 */
-	async getV4(path: string, params: Record<string, any> = {}) {
-		const url = this.buildUrl(this.v4BaseUrl, path, params);
+		const url = this.buildUrl(path, params);
 		const response = await fetch(url.toString(), {
 			method: "GET",
 			headers: {
