@@ -17,7 +17,7 @@ async function main() {
 	const apiKey = process.env.WECANDEO_API_KEY;
 	if (!apiKey) {
 		console.error("Error: WECANDEO_API_KEY environment variable is required.");
-		console.error("Usage: WECANDEO_API_KEY=your_key npx @wecandeo/wecandeo-v4-mcp");
+		console.error("Usage: WECANDEO_API_KEY=your_key npx @wecandeo/mcp-videopack-v4");
 		process.exit(1);
 	}
 

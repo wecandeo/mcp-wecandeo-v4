@@ -1,5 +1,5 @@
 {
-	"name": "@wecandeo/wecandeo-v4-mcp",
+	"name": "@wecandeo/mcp-videopack-v4",
 	"version": "1.0.0",
 	"description": "Wecandeo VideoPack v4 MCP Server - video management tools (upload, encoding, publishing, media archive) via the MCP protocol",
 	"type": "module",
@@ -14,7 +14,7 @@
 	},
 	"homepage": "https://github.com/wecandeo/mcp-wecandeo-v4#readme",
 	"bin": {
-		"wecandeo-v4-mcp": "dist/index.js"
+		"mcp-videopack-v4": "dist/index.js"
 	},
 	"files": [
 		"dist",
