@@ -9,8 +9,8 @@ export function registerPackageTools(server: McpServer, client: WecandeoClient) 
 	// Distribution package list.
 	server.tool(
 		"wecandeo_package_list",
-		"Retrieve the list of distribution packages (id, name, auth flag).",
+		"Retrieve the list of distribution packages (packageId, packageType, packageName, sharing flags).",
 		{},
-		async () => jsonContent(await client.get("/info/v1/packages.json"))
+		async () => jsonContent(await client.get("/info/videopack/package/v1/info.json"))
 	);
 }

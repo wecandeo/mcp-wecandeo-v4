@@ -12,11 +12,11 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 		"wecandeo_video_add_to_package",
 		"Add a video to a distribution package (triggers encoding / URL issuance).",
 		{
-			access_key: z.string().describe("Original video access key (Level 1)"),
-			pkg: z.string().describe("Distribution package ID"),
+			accessKey: z.string().describe("Original video access key (Level 1)"),
+			packageId: z.number().describe("Distribution package ID"),
 		},
-		async ({ access_key, pkg }) =>
-			jsonContent(await client.get("/info/v1/video/set/package.json", { access_key, pkg }))
+		async ({ accessKey, packageId }) =>
+			jsonContent(await client.get("/info/videopack/package/v1/set/include.json", { accessKey, packageId }))
 	);
 
 	// Exclude video from package.
@@ -24,11 +24,11 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 		"wecandeo_video_exclude_from_package",
 		"Exclude a video from a distribution package.",
 		{
-			access_key: z.string().describe("Original video access key (Level 1)"),
-			pkg: z.string().describe("Distribution package ID"),
+			accessKey: z.string().describe("Original video access key (Level 1)"),
+			packageId: z.number().describe("Distribution package ID"),
 		},
-		async ({ access_key, pkg }) =>
-			jsonContent(await client.get("/info/v1/video/set/exclude.json", { access_key, pkg }))
+		async ({ accessKey, packageId }) =>
+			jsonContent(await client.get("/info/videopack/package/v1/set/exclude.json", { accessKey, packageId }))
 	);
 
 	// Start publish.
@@ -36,11 +36,11 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 		"wecandeo_video_start_publish",
 		"Start publishing (distributing) a video within a package.",
 		{
-			access_key: z.string().describe("Original video access key (Level 1)"),
-			pkg: z.string().describe("Distribution package ID"),
+			accessKey: z.string().describe("Original video access key (Level 1)"),
+			packageId: z.number().describe("Distribution package ID"),
 		},
-		async ({ access_key, pkg }) =>
-			jsonContent(await client.get("/info/v1/video/set/publish.json", { access_key, pkg }))
+		async ({ accessKey, packageId }) =>
+			jsonContent(await client.get("/info/videopack/package/v1/set/publish.json", { accessKey, packageId }))
 	);
 
 	// Pause publish.
@@ -48,11 +48,11 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 		"wecandeo_video_pause_publish",
 		"Pause publishing (distributing) a video within a package.",
 		{
-			access_key: z.string().describe("Original video access key (Level 1)"),
-			pkg: z.string().describe("Distribution package ID"),
+			accessKey: z.string().describe("Original video access key (Level 1)"),
+			packageId: z.number().describe("Distribution package ID"),
 		},
-		async ({ access_key, pkg }) =>
-			jsonContent(await client.get("/info/v1/video/set/pause.json", { access_key, pkg }))
+		async ({ accessKey, packageId }) =>
+			jsonContent(await client.get("/info/videopack/package/v1/set/pause.json", { accessKey, packageId }))
 	);
 
 	// Modify archive folder (move video).
@@ -60,11 +60,11 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 		"wecandeo_video_modify_folder",
 		"Move a video to a different media-archive folder.",
 		{
-			access_key: z.string().describe("Original video access key (Level 1)"),
-			folder: z.number().describe("Target media-archive folder ID"),
+			accessKey: z.string().describe("Original video access key (Level 1)"),
+			folderId: z.number().describe("Target media-archive folder ID"),
 		},
-		async ({ access_key, folder }) =>
-			jsonContent(await client.get("/info/v1/video/set/folder.json", { access_key, folder }))
+		async ({ accessKey, folderId }) =>
+			jsonContent(await client.get("/info/videopack/folder/v1/set/change.json", { accessKey, folderId }))
 	);
 
 	// Modify metadata.
@@ -72,7 +72,7 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 		"wecandeo_video_modify_meta",
 		"Modify the metadata (title, series, author, copyright, rate, content, etc, tag) of a video.",
 		{
-			access_key: z.string().describe("Original video access key (Level 1)"),
+			accessKey: z.string().describe("Original video access key (Level 1)"),
 			title: z.string().optional().describe("Title"),
 			series: z.string().optional().describe("Series"),
 			author: z.string().optional().describe("Author"),
@@ -82,7 +82,7 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 			etc: z.string().optional().describe("Etc"),
 			tag: z.string().optional().describe("Comma-separated tags (e.g. tag1,tag2,tag3)"),
 		},
-		async (args) => jsonContent(await client.get("/info/v1/video/set/detail.json", args))
+		async (args) => jsonContent(await client.get("/info/videopack/detail/v1/set/info.json", args))
 	);
 
 	// Set default (represent) thumbnail.
@@ -90,10 +90,10 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 		"wecandeo_video_set_default_thumbnail",
 		"Set a specific extracted thumbnail (by sequence) as the video's default thumbnail.",
 		{
-			access_key: z.string().describe("Original video access key (Level 1)"),
-			seq: z.number().describe("Thumbnail sequence number (1-6)"),
+			accessKey: z.string().describe("Original video access key (Level 1)"),
+			seq: z.number().describe("Thumbnail sequence number (0-5)"),
 		},
-		async ({ access_key, seq }) =>
-			jsonContent(await client.get("/info/v1/video/set/thumbnail.json", { access_key, seq }))
+		async ({ accessKey, seq }) =>
+			jsonContent(await client.get("/info/videopack/thumbnail/v1/set/info.json", { accessKey, seq }))
 	);
 }
