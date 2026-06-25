@@ -1,6 +1,6 @@
 {
 	"name": "@wecandeo/mcp-videopack-v4",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Wecandeo VideoPack v4 MCP Server - video management tools (upload, encoding, publishing, media archive) via the MCP protocol",
 	"type": "module",
 	"author": "wecandeo <wecandeo.dev@malgnsoft.com>",
