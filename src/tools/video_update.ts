@@ -70,7 +70,7 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 	// Modify metadata.
 	server.tool(
 		"wecandeo_video_modify_meta",
-		"Modify the metadata (title, series, author, copyright, rate, content, etc, tag) of a video.",
+		"Modify the metadata (title, series, author, copyright, rate, content, etc, cid, tag) of a video.",
 		{
 			accessKey: z.string().describe("Original video access key (Level 1)"),
 			title: z.string().optional().describe("Title"),
@@ -80,6 +80,7 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 			rate: z.string().optional().describe("Viewing rating"),
 			content: z.string().optional().describe("Content / description"),
 			etc: z.string().optional().describe("Etc"),
+			cid: z.string().max(64).optional().describe("Custom user-defined ID (max 64 chars)"),
 			tag: z.string().optional().describe("Comma-separated tags (e.g. tag1,tag2,tag3)"),
 		},
 		async (args) => jsonContent(await client.get("/info/videopack/detail/v1/set/info.json", args))
@@ -91,7 +92,7 @@ export function registerVideoUpdateTools(server: McpServer, client: WecandeoClie
 		"Set a specific extracted thumbnail (by sequence) as the video's default thumbnail.",
 		{
 			accessKey: z.string().describe("Original video access key (Level 1)"),
-			seq: z.number().describe("Thumbnail sequence number (0-5)"),
+			seq: z.number().describe("Thumbnail sequence: 0-5 (auto-extracted frames) or 100 (user-uploaded thumbnail)"),
 		},
 		async ({ accessKey, seq }) =>
 			jsonContent(await client.get("/info/videopack/thumbnail/v1/set/info.json", { accessKey, seq }))

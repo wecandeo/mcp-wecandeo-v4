@@ -12,6 +12,23 @@ import { jsonContent, errorContent } from "../utils/response.js";
  * then POSTed as multipart/form-data to `{uploadUrl}?token={token}` with a
  * `file` form field. Thumbnail and caption tokens are issued per accessKey.
  */
+/**
+ * multipart/form-data POST 를 `{uploadUrl}?token=...` 로 전송한다.
+ * HTTP 오류 응답은 isError 로 반환한다.
+ */
+async function postForm(uploadUrl: string, query: Record<string, string | number | undefined>, formData: FormData) {
+	const url = new URL(uploadUrl);
+	for (const [key, value] of Object.entries(query)) {
+		if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
+	}
+	const response = await fetch(url.toString(), { method: "POST", body: formData });
+	const text = await response.text();
+	if (!response.ok) {
+		return errorContent(`Upload failed (${response.status}): ${text}`);
+	}
+	return jsonContent(text);
+}
+
 export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 	// Video upload token — prerequisite for a video file upload.
 	server.tool(
@@ -58,11 +75,7 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 			}
 			formData.append("file", file.blob, file.fileName);
 
-			const response = await fetch(`${uploadUrl}?token=${encodeURIComponent(token)}`, {
-				method: "POST",
-				body: formData,
-			});
-			return jsonContent(await response.text());
+			return postForm(uploadUrl, { token }, formData);
 		}
 	);
 
@@ -119,11 +132,7 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 			const formData = new FormData();
 			formData.append("file", file.blob, file.fileName);
 
-			const response = await fetch(`${uploadUrl}?token=${encodeURIComponent(token)}`, {
-				method: "POST",
-				body: formData,
-			});
-			return jsonContent(await response.text());
+			return postForm(uploadUrl, { token }, formData);
 		}
 	);
 
@@ -134,7 +143,7 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 		{
 			accessKey: z.string().describe("Original video access key (Level 1) to attach the caption to"),
 			source: z.string().describe("Local file path or remote URL of the .vtt caption file"),
-			langId: z.number().optional().describe("Language code ID from wecandeo_upload_caption_language"),
+			langId: z.number().optional().describe("Language code ID from wecandeo_upload_caption_language (default 10000 = Korean). An existing caption with the same accessKey+langId is replaced."),
 			captionType: z.enum(["STANDARD", "SDH"]).optional().describe("Caption type: STANDARD (default) or SDH (for the hearing impaired)"),
 		},
 		async ({ accessKey, source, langId, captionType }) => {
@@ -151,16 +160,11 @@ export function registerUploadTools(server: McpServer, client: WecandeoClient) {
 				return jsonContent(tokenInfo);
 			}
 
+			// langId / captionType 는 Form 이 아닌 Request(Query) 파라미터로 전달해야 한다.
 			const formData = new FormData();
-			if (langId !== undefined) formData.append("langId", String(langId));
-			if (captionType) formData.append("captionType", captionType);
 			formData.append("file", file.blob, file.fileName);
 
-			const response = await fetch(`${uploadUrl}?token=${encodeURIComponent(token)}`, {
-				method: "POST",
-				body: formData,
-			});
-			return jsonContent(await response.text());
+			return postForm(uploadUrl, { token, langId, captionType }, formData);
 		}
 	);
 
