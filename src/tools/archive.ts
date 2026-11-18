@@ -13,7 +13,7 @@ export function registerArchiveTools(server: McpServer, client: WecandeoClient) 
 		"Create a new video folder in the media archive. Returns the new folder ID.",
 		{ folderName: z.string().describe("Name of the folder to create") },
 		async ({ folderName }) =>
-			jsonContent(await client.get("/info/video/folder/v1/set/create.json", { folderName }))
+			jsonContent(await client.get("/info/videopack/folder/v1/set/create.json", { folderName }))
 	);
 
 	// Folder list.
@@ -28,9 +28,15 @@ export function registerArchiveTools(server: McpServer, client: WecandeoClient) 
 	server.tool(
 		"wecandeo_archive_folder_by_name",
 		"Look up a media-archive video folder by its name.",
-		{ folderName: z.string().describe("Folder name to look up") },
-		async ({ folderName }) =>
-			jsonContent(await client.get("/info/videopack/folder/v1/name.json", { folderName }))
+		{
+			folderName: z.string().describe("Folder name to look up"),
+			storageUsage: z
+				.enum(["none", "original", "all"])
+				.optional()
+				.describe("Storage usage fields: none (default), original (+originalStorageBytes), all (+originalStorageBytes, encodedStorageBytes)"),
+		},
+		async ({ folderName, storageUsage }) =>
+			jsonContent(await client.get("/info/videopack/folder/v1/name.json", { folderName, storageUsage }))
 	);
 
 	// Original download URL. URL is valid for 2 days.

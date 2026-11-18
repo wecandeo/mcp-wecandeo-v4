@@ -84,7 +84,7 @@ export function registerVideoTools(server: McpServer, client: WecandeoClient) {
 		"Generate a time-limited one-time access key for a video key (Level 2) or file key (Level 3).",
 		{
 			key: z.string().describe("Video Key (Level 2) or File Key (Level 3)"),
-			expire: z.number().optional().describe("Expiration seconds from now (default 10)"),
+			expire: z.number().optional().describe("Expiration seconds from now (default and minimum 360)"),
 		},
 		async ({ key, expire }) =>
 			jsonContent(await client.get("/info/videopack/auth/v1/key.json", { key, expire }))
